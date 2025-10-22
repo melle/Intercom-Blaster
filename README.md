@@ -2,7 +2,7 @@
 
 Intercom Blaster is a macOS status-bar companion that listens for HTTP triggers and immediately blasts live video right in your face.
 
-![Intercom Blaster Logo](Intercom.png)
+![Intercom Blaster Logo](Sources/IntercomBlaster/Resources/intercom-256.png)
 
 ## But why?
 
