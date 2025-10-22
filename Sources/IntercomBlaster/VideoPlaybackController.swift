@@ -52,7 +52,7 @@ final class VideoPlaybackController: NSObject {
             backing: .buffered,
             defer: false
         )
-        window.title = "DingDong Blaster"
+        window.title = "Intercom Blaster"
         window.isReleasedWhenClosed = false
         window.delegate = windowDelegate
 

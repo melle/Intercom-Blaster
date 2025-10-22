@@ -1,7 +1,7 @@
 import Foundation
 import Network
 import os
-import DingDongBlasterCore
+import IntercomBlasterCore
 
 actor WebRequestServer {
     struct Configuration: Sendable {
@@ -18,11 +18,11 @@ actor WebRequestServer {
     }
 
     private let urlHandler: @Sendable (URL) async -> Void
-    private let queue = DispatchQueue(label: "com.dingdongblaster.webserver")
+    private let queue = DispatchQueue(label: "com.intercomblaster.webserver")
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private var configuration: Configuration?
-    private let logger = Logger(subsystem: "com.dingdongblaster.app", category: "WebRequestServer")
+    private let logger = Logger(subsystem: "com.intercomblaster.app", category: "WebRequestServer")
 
     init(urlHandler: @escaping @Sendable (URL) async -> Void) {
         self.urlHandler = urlHandler

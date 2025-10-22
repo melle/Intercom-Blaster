@@ -13,7 +13,7 @@ final class StatusItemController {
     func install(menuItems: [MenuItem]) {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "video.doorbell", accessibilityDescription: "DingDong Blaster")
+            button.image = NSImage(systemSymbolName: "video.doorbell", accessibilityDescription: "Intercom Blaster")
         }
 
         let menu = NSMenu()

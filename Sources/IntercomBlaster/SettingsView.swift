@@ -2,7 +2,7 @@ import SwiftUI
 #if canImport(AppKit)
 import AppKit
 #endif
-import DingDongBlasterCore
+import IntercomBlasterCore
 
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
@@ -50,7 +50,7 @@ struct SettingsView: View {
                 .padding(.leading, 4)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("DingDong Blaster")
+                Text("Intercom Blaster")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Text("Instant video the moment someone hits the bell.")
@@ -186,7 +186,7 @@ struct SettingsView: View {
     private var headerImage: some View {
         Group {
 #if canImport(AppKit)
-            if let url = Bundle.module.url(forResource: "dingdong-256", withExtension: "png"),
+            if let url = Bundle.module.url(forResource: "intercom-256", withExtension: "png"),
                let nsImage = NSImage(contentsOf: url) {
                 Image(nsImage: nsImage)
                     .resizable()

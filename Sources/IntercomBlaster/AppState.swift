@@ -1,6 +1,6 @@
 import Foundation
 import os
-import DingDongBlasterCore
+import IntercomBlasterCore
 
 @MainActor
 final class AppState: ObservableObject {
@@ -29,11 +29,11 @@ final class AppState: ObservableObject {
     }
 
     private var configurationTask: Task<Void, Never>?
-    private let logger = Logger(subsystem: "com.dingdongblaster.app", category: "AppState")
+    private let logger = Logger(subsystem: "com.intercomblaster.app", category: "AppState")
 
     private enum DefaultsKey {
-        static let regex = "VideoURLRegex"
-        static let port = "WebServerPort"
+        static let regex = "IntercomBlasterVideoURLRegex"
+        static let port = "IntercomBlasterWebServerPort"
     }
     private static let defaultRegexPattern = #"(https?|rtsp)://.+"#
     private static let legacyDefaultRegexPattern = #"https?://.+"#
@@ -150,14 +150,14 @@ final class AppState: ObservableObject {
     }
 
     private func makeBonjourConfiguration(port: UInt16) -> WebRequestServer.Configuration.BonjourConfiguration {
-        let hostName = Host.current().localizedName ?? "DingDong Blaster"
+        let hostName = Host.current().localizedName ?? "Intercom Blaster"
         let txtRecord = NetService.data(fromTXTRecord: [
             "path": Data("/play".utf8),
             "proto": Data("http".utf8)
         ])
         return .init(
             name: hostName,
-            type: "_dingdongblaster._tcp",
+            type: "_intercomblaster._tcp",
             domain: nil,
             txtRecord: txtRecord
         )

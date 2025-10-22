@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "DingDongBlaster",
+    name: "IntercomBlaster",
     platforms: [
         .macOS(.v14)
     ],
     products: [
         .executable(
-            name: "DingDongBlaster",
-            targets: ["DingDongBlaster"]
+            name: "IntercomBlaster",
+            targets: ["IntercomBlaster"]
         )
     ],
     targets: [
@@ -18,13 +18,13 @@ let package = Package(
             path: "Vendor/VLCKit.xcframework"
         ),
         .target(
-            name: "DingDongBlasterCore",
-            path: "Sources/DingDongBlasterCore"
+            name: "IntercomBlasterCore",
+            path: "Sources/IntercomBlasterCore"
         ),
         .executableTarget(
-            name: "DingDongBlaster",
+            name: "IntercomBlaster",
             dependencies: [
-                "DingDongBlasterCore",
+                "IntercomBlasterCore",
                 "VLCKit"
             ],
             resources: [
@@ -35,14 +35,14 @@ let package = Package(
                     "-Xlinker", "-sectcreate",
                     "-Xlinker", "__TEXT",
                     "-Xlinker", "__info_plist",
-                    "-Xlinker", "Sources/DingDongBlaster/Resources/AppInfo.plist"
+                    "-Xlinker", "Sources/IntercomBlaster/Resources/AppInfo.plist"
                 ])
             ]
         ),
         .testTarget(
-            name: "DingDongBlasterTests",
+            name: "IntercomBlasterTests",
             dependencies: [
-                .target(name: "DingDongBlasterCore")
+                .target(name: "IntercomBlasterCore")
             ]
         )
     ]

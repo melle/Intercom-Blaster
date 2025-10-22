@@ -1,5 +1,5 @@
 import Testing
-@testable import DingDongBlasterCore
+@testable import IntercomBlasterCore
 
 @Suite("Port validation")
 struct ServerConfigurationValidatorTests {

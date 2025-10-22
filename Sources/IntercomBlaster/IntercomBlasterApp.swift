@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct DingDongBlasterApp: App {
+struct IntercomBlasterApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
