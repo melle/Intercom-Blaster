@@ -1,11 +1,11 @@
 import Foundation
 
-struct HTTPRequestHead: Sendable {
-    let method: String
-    let path: String
+public struct HTTPRequestHead: Sendable {
+    public let method: String
+    public let path: String
     private let headerStorage: [String: String]
 
-    init(method: String, path: String, headers: [String: String]) {
+    public init(method: String, path: String, headers: [String: String]) {
         self.method = method
         self.path = path
         self.headerStorage = headers.reduce(into: [:]) { partialResult, pair in
@@ -13,17 +13,17 @@ struct HTTPRequestHead: Sendable {
         }
     }
 
-    func value(forHeader name: String) -> String? {
+    public func value(forHeader name: String) -> String? {
         headerStorage[name.lowercased()]
     }
 }
 
-enum HTTPRequestParseError: Error, LocalizedError, Equatable {
+public enum HTTPRequestParseError: Error, LocalizedError, Equatable {
     case emptyRequestLine
     case invalidRequestLine(String)
     case malformedHeader(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .emptyRequestLine:
             return "Request line is empty."
@@ -35,8 +35,8 @@ enum HTTPRequestParseError: Error, LocalizedError, Equatable {
     }
 }
 
-enum HTTPRequestParser {
-    static func parseHead(from raw: String) throws -> HTTPRequestHead {
+public enum HTTPRequestParser {
+    public static func parseHead(from raw: String) throws -> HTTPRequestHead {
         var lines = raw.split(separator: "\r\n", omittingEmptySubsequences: false)
         guard let requestLine = lines.first, !requestLine.isEmpty else {
             throw HTTPRequestParseError.emptyRequestLine

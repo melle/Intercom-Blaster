@@ -1,33 +1,46 @@
 import AppKit
-import AVKit
+import VLCKit
 
 @MainActor
-final class VideoPlaybackController {
+final class VideoPlaybackController: NSObject {
     private var window: NSWindow?
-    private var player: AVPlayer?
-    private var playerView: AVPlayerView?
+    private var videoView: VLCVideoView?
     private lazy var windowDelegate = PlaybackWindowDelegate(onClose: { [weak self] in
         self?.stopPlayback()
     })
-    private var statusObservation: NSKeyValueObservation?
+
+    private lazy var player: VLCMediaPlayer = {
+        let mediaPlayer = VLCMediaPlayer()
+        mediaPlayer.delegate = self
+        return mediaPlayer
+    }()
+
+    private var lastErrorDescription: String?
 
     func playStream(from url: URL) {
-        let playerItem = AVPlayerItem(url: url)
-        let player = AVPlayer(playerItem: playerItem)
-        playerItem.preferredForwardBufferDuration = 1
         prepareWindowIfNeeded()
-        playerView?.player = player
-        self.player = player
-        observeStatus(of: playerItem)
+        guard let videoView else { return }
+
+        lastErrorDescription = nil
+        if player.isPlaying {
+            player.stop()
+        }
+
+        let media = VLCMedia(url: url)
+        media.addOption(":network-caching=1000")
+        media.addOption(":clock-jitter=0")
+        media.addOption(":clock-synchro=0")
+
+        player.drawable = videoView
+        player.media = media
         player.play()
         bringWindowToFront()
     }
 
     func stopPlayback() {
-        player?.pause()
-        player = nil
-        playerView?.player = nil
-        statusObservation = nil
+        player.stop()
+        player.media = nil
+        player.drawable = nil
     }
 
     private func prepareWindowIfNeeded() {
@@ -43,14 +56,21 @@ final class VideoPlaybackController {
         window.isReleasedWhenClosed = false
         window.delegate = windowDelegate
 
-        let playerView = AVPlayerView()
-        playerView.controlsStyle = .none
-        playerView.autoresizingMask = [.width, .height]
-        window.contentView = playerView
+        let videoView = VLCVideoView()
+        videoView.translatesAutoresizingMaskIntoConstraints = false
+        videoView.autoresizingMask = [.width, .height]
+        videoView.fillScreen = true
+
+        let containerView = NSView(frame: window.contentView?.bounds ?? NSRect(x: 0, y: 0, width: 800, height: 450))
+        containerView.autoresizingMask = [.width, .height]
+        containerView.addSubview(videoView)
+        videoView.frame = containerView.bounds
+
+        window.contentView = containerView
         window.center()
 
         self.window = window
-        self.playerView = playerView
+        self.videoView = videoView
     }
 
     private func bringWindowToFront() {
@@ -59,32 +79,39 @@ final class VideoPlaybackController {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func observeStatus(of item: AVPlayerItem) {
-        statusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] playerItem, _ in
-            guard let self else { return }
-            switch playerItem.status {
-            case .readyToPlay:
-                break
-            case .failed:
-                Task { @MainActor in
-                    self.handlePlaybackFailure(item: playerItem)
-                }
-            case .unknown:
-                break
-            @unknown default:
-                break
-            }
-        }
-    }
-
-    private func handlePlaybackFailure(item: AVPlayerItem) {
-        let errorDescription = item.error?.localizedDescription ?? "Unknown error"
+    private func presentErrorAlert(message: String) {
+        guard message != lastErrorDescription else { return }
+        lastErrorDescription = message
         stopPlayback()
         let alert = NSAlert()
         alert.messageText = "Unable to start playback"
-        alert.informativeText = errorDescription
+        alert.informativeText = message
         alert.alertStyle = .warning
         alert.runModal()
+    }
+}
+
+extension VideoPlaybackController: VLCMediaPlayerDelegate {
+    nonisolated func mediaPlayerEncounteredError(_ aNotification: Notification) {
+        Task { @MainActor in
+            self.presentErrorAlert(message: "The stream cannot be decoded.")
+        }
+    }
+
+    nonisolated func mediaPlayerStateChanged(_ aNotification: Notification) {
+        guard let player = aNotification.object as? VLCMediaPlayer else { return }
+        switch player.state {
+        case .error:
+            Task { @MainActor in
+                self.presentErrorAlert(message: "The stream reported an error.")
+            }
+        case .ended, .stopped:
+            Task { @MainActor in
+                self.stopPlayback()
+            }
+        default:
+            break
+        }
     }
 }
 

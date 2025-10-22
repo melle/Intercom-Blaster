@@ -1,12 +1,12 @@
 import Foundation
 
-struct VideoURLValidator: Sendable {
-    enum ValidationError: Error, Equatable {
+public struct VideoURLValidator: Sendable {
+    public enum ValidationError: Error, Equatable {
         case invalidPattern(String)
         case noMatch
         case invalidURL(String)
 
-        static func == (lhs: ValidationError, rhs: ValidationError) -> Bool {
+        public static func == (lhs: ValidationError, rhs: ValidationError) -> Bool {
             switch (lhs, rhs) {
             case let (.invalidPattern(a), .invalidPattern(b)):
                 return a == b
@@ -20,13 +20,17 @@ struct VideoURLValidator: Sendable {
         }
     }
 
-    let pattern: String
+    public let pattern: String
 
-    func isPatternValid() -> Bool {
+    public init(pattern: String) {
+        self.pattern = pattern
+    }
+
+    public func isPatternValid() -> Bool {
         (try? Regex(pattern)) != nil
     }
 
-    func compiledRegex() throws -> Regex<AnyRegexOutput> {
+    public func compiledRegex() throws -> Regex<AnyRegexOutput> {
         do {
             return try Regex(pattern)
         } catch {
@@ -34,7 +38,7 @@ struct VideoURLValidator: Sendable {
         }
     }
 
-    func validate(body: String) -> Result<URL, ValidationError> {
+    public func validate(body: String) -> Result<URL, ValidationError> {
         let regex: Regex<AnyRegexOutput>
         do {
             regex = try compiledRegex()

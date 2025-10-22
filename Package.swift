@@ -13,19 +13,26 @@ let package = Package(
         )
     ],
     targets: [
+        .binaryTarget(
+            name: "VLCKit",
+            path: "Vendor/VLCKit.xcframework"
+        ),
+        .target(
+            name: "DingDongBlasterCore",
+            path: "Sources/DingDongBlasterCore"
+        ),
         .executableTarget(
             name: "DingDongBlaster",
-            path: "Sources",
-            sources: ["DingDongBlaster"],
-            resources: []
+            dependencies: [
+                "DingDongBlasterCore",
+                "VLCKit"
+            ]
         ),
         .testTarget(
             name: "DingDongBlasterTests",
             dependencies: [
-                .target(name: "DingDongBlaster")
-            ],
-            path: "Tests",
-            sources: ["DingDongBlasterTests"]
+                .target(name: "DingDongBlasterCore")
+            ]
         )
     ]
 )

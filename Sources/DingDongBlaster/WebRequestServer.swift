@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import os
+import DingDongBlasterCore
 
 actor WebRequestServer {
     struct Configuration: Sendable {

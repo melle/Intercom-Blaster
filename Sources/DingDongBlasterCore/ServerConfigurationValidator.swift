@@ -1,12 +1,12 @@
 import Foundation
 
-struct ServerConfigurationValidator {
-    enum PortValidationError: Error, Equatable {
+public struct ServerConfigurationValidator {
+    public enum PortValidationError: Error, Equatable {
         case notANumber
         case outOfRange
     }
 
-    static func normalizePort(_ text: String) -> Result<UInt16, PortValidationError> {
+    public static func normalizePort(_ text: String) -> Result<UInt16, PortValidationError> {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let intValue = UInt32(trimmed) else {
             return .failure(.notANumber)

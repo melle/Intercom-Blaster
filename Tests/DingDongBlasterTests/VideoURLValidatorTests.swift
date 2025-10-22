@@ -1,5 +1,5 @@
 import Testing
-@testable import DingDongBlaster
+@testable import DingDongBlasterCore
 
 @Suite("VideoURLValidator")
 struct VideoURLValidatorTests {

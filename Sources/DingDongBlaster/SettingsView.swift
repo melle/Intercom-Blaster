@@ -1,4 +1,5 @@
 import SwiftUI
+import DingDongBlasterCore
 
 struct SettingsView: View {
     @EnvironmentObject private var appState: AppState
