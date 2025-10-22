@@ -10,7 +10,7 @@ I added a VoIP intercom with video support and wanted to peek at the feed withou
 
 ## The name...
 
-Years ago on a German podcast (likely *Bits und so*), a Coding Monkeys developer mentioned an internal tool that could blast images to colleagues’ screens; they dubbed it “Retina Blaster.” I wanted the same “instant reveal” idea—just with video—so “Intercom Blaster” stuck.
+Years ago on a German podcast (likely *[Bits und so](https://www.bitsundso.de/)*), a [Coding Monkeys](https://www.codingmonkeys.de/) developer mentioned an internal tool that could blast images to colleagues’ screens; they dubbed it "Retina Blaster". I wanted the same "instant reveal" idea - just with video - so "Intercom Blaster" stuck.
 
 ## How?
 
