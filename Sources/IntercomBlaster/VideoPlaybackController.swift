@@ -47,7 +47,7 @@ final class VideoPlaybackController: NSObject {
         guard window == nil else { return }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 450),
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 720),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -61,10 +61,17 @@ final class VideoPlaybackController: NSObject {
         videoView.autoresizingMask = [.width, .height]
         videoView.fillScreen = true
 
-        let containerView = NSView(frame: window.contentView?.bounds ?? NSRect(x: 0, y: 0, width: 800, height: 450))
+        let containerView = NSView(frame: window.contentView?.bounds ?? NSRect(x: 0, y: 0, width: 720, height: 720))
         containerView.autoresizingMask = [.width, .height]
         containerView.addSubview(videoView)
         videoView.frame = containerView.bounds
+
+        NSLayoutConstraint.activate([
+            videoView.widthAnchor.constraint(equalTo: containerView.widthAnchor),
+            videoView.heightAnchor.constraint(equalTo: containerView.widthAnchor),
+            videoView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            videoView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
+        ])
 
         window.contentView = containerView
         window.center()
