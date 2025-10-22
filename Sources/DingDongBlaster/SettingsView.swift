@@ -33,6 +33,12 @@ struct SettingsView: View {
                         .textSelection(.enabled)
                 }
             }
+
+            Section("Trigger URL") {
+                Text(triggerURLText)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+            }
         }
         .padding(20)
         .frame(width: 420)
@@ -53,6 +59,26 @@ struct SettingsView: View {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.red)
             }
+        }
+    }
+
+    private var triggerURLText: String {
+        let port: UInt16?
+        switch appState.serverStatus {
+        case .running(let runningPort):
+            port = runningPort
+        default:
+            if case .success(let parsedPort) = ServerConfigurationValidator.normalizePort(appState.portString) {
+                port = parsedPort
+            } else {
+                port = nil
+            }
+        }
+
+        if let port {
+            return "http://localhost:\(port)/play"
+        } else {
+            return "Port not configured"
         }
     }
 }
