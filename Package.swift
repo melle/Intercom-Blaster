@@ -26,6 +26,9 @@ let package = Package(
             dependencies: [
                 "DingDongBlasterCore",
                 "VLCKit"
+            ],
+            resources: [
+                .process("Resources")
             ]
         ),
         .testTarget(
