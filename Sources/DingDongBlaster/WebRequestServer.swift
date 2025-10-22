@@ -7,6 +7,14 @@ actor WebRequestServer {
     struct Configuration: Sendable {
         let port: UInt16
         let validator: VideoURLValidator
+        let bonjour: BonjourConfiguration?
+
+        struct BonjourConfiguration: Sendable {
+            let name: String?
+            let type: String
+            let domain: String?
+            let txtRecord: Data?
+        }
     }
 
     private let urlHandler: @Sendable (URL) async -> Void
@@ -35,6 +43,14 @@ actor WebRequestServer {
         }
 
         let listener = try NWListener(using: .tcp, on: nwPort)
+        if let bonjour = configuration.bonjour {
+            listener.service = NWListener.Service(
+                name: bonjour.name,
+                type: bonjour.type,
+                domain: bonjour.domain,
+                txtRecord: bonjour.txtRecord
+            )
+        }
         listener.newConnectionHandler = { [weak self] connection in
             guard let self else { return }
             Task {

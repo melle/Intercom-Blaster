@@ -114,7 +114,12 @@ final class AppState: ObservableObject {
         }
 
         do {
-            try await server.restart(with: .init(port: port, validator: validator))
+            let configuration = WebRequestServer.Configuration(
+                port: port,
+                validator: validator,
+                bonjour: makeBonjourConfiguration(port: port)
+            )
+            try await server.restart(with: configuration)
             persist(regex: regexPattern, port: port)
             serverStatus = .running(port: port)
             logger.info("Server running on port \(port)")
@@ -142,5 +147,19 @@ final class AppState: ObservableObject {
 
     func stopPlayback() {
         playbackController.stopPlayback()
+    }
+
+    private func makeBonjourConfiguration(port: UInt16) -> WebRequestServer.Configuration.BonjourConfiguration {
+        let hostName = Host.current().localizedName ?? "DingDong Blaster"
+        let txtRecord = NetService.data(fromTXTRecord: [
+            "path": Data("/play".utf8),
+            "proto": Data("http".utf8)
+        ])
+        return .init(
+            name: hostName,
+            type: "_dingdongblaster._tcp",
+            domain: nil,
+            txtRecord: txtRecord
+        )
     }
 }
