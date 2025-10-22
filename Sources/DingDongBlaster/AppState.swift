@@ -34,13 +34,26 @@ final class AppState: ObservableObject {
         static let regex = "VideoURLRegex"
         static let port = "WebServerPort"
     }
+    private static let defaultRegexPattern = #"(https?|rtsp)://.+"#
+    private static let legacyDefaultRegexPattern = #"https?://.+"#
 
     init() {
         let defaults = UserDefaults.standard
+        let resolvedRegex: String
+        var shouldPersistResolvedRegex = false
         if let persistedRegex = defaults.string(forKey: DefaultsKey.regex) {
-            regexPattern = persistedRegex
+            if persistedRegex == Self.legacyDefaultRegexPattern {
+                resolvedRegex = Self.defaultRegexPattern
+                shouldPersistResolvedRegex = true
+            } else {
+                resolvedRegex = persistedRegex
+            }
         } else {
-            regexPattern = #"https?://.+"#
+            resolvedRegex = Self.defaultRegexPattern
+        }
+        regexPattern = resolvedRegex
+        if shouldPersistResolvedRegex {
+            defaults.set(resolvedRegex, forKey: DefaultsKey.regex)
         }
 
         if let storedPort = defaults.object(forKey: DefaultsKey.port) as? Int {

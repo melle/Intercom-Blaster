@@ -5,8 +5,16 @@ import Testing
 struct VideoURLValidatorTests {
     @Test("Accepts when regex matches valid URL")
     func acceptsValidMatch() throws {
-        let validator = VideoURLValidator(pattern: #"https?://[\w\.-]+/stream"#)
+        let validator = VideoURLValidator(pattern: #"(https?|rtsp)://[\w\.-]+/stream"#)
         let body = "https://example.com/stream"
+        let result = validator.validate(body: body)
+        #expect(try result.get().absoluteString == body)
+    }
+
+    @Test("Accepts RTSP URL when pattern includes RTSP")
+    func acceptsRTSPURL() throws {
+        let validator = VideoURLValidator(pattern: #"(https?|rtsp)://[\w\.-]+/stream"#)
+        let body = "rtsp://example.com/stream"
         let result = validator.validate(body: body)
         #expect(try result.get().absoluteString == body)
     }
