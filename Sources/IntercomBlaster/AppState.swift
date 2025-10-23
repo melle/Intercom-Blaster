@@ -70,22 +70,32 @@ final class AppState: ObservableObject {
 
     @Published private(set) var regexError: String?
     @Published private(set) var portError: String?
-    @Published private(set) var serverStatus: ServerStatus = .stopped
-    @Published private(set) var lastRequestDescription: String?
-    @Published private(set) var hostAddress: String
+@Published private(set) var serverStatus: ServerStatus = .stopped
+@Published private(set) var lastRequestDescription: String?
+@Published private(set) var hostAddress: String
+@Published var windowWidthString: String {
+    didSet { scheduleWindowSizeUpdate() }
+}
+@Published var windowHeightString: String {
+    didSet { scheduleWindowSizeUpdate() }
+}
+@Published private(set) var windowSizeError: String?
 
-    private let playbackController = VideoPlaybackController()
-    private lazy var server = WebRequestServer { [weak self] url in
-        await self?.handleIncomingURL(url)
-    }
+private let playbackController = VideoPlaybackController()
+private lazy var server = WebRequestServer { [weak self] url in
+    await self?.handleIncomingURL(url)
+}
 
-    private var configurationTask: Task<Void, Never>?
-    private let logger = Logger(subsystem: "com.intercomblaster.app", category: "AppState")
+private var configurationTask: Task<Void, Never>?
+private var windowSizeTask: Task<Void, Never>?
+private let logger = Logger(subsystem: "com.intercomblaster.app", category: "AppState")
 
-    private enum DefaultsKey {
-        static let regex = "IntercomBlasterVideoURLRegex"
-        static let port = "IntercomBlasterWebServerPort"
-    }
+private enum DefaultsKey {
+    static let regex = "IntercomBlasterVideoURLRegex"
+    static let port = "IntercomBlasterWebServerPort"
+    static let windowWidth = "IntercomBlasterWindowWidth"
+    static let windowHeight = "IntercomBlasterWindowHeight"
+}
     private static let defaultRegexPattern = #"(https?|rtsp)://.+"#
     private static let legacyDefaultRegexPattern = #"https?://.+"#
 
@@ -110,16 +120,28 @@ final class AppState: ObservableObject {
 
         if let storedPort = defaults.object(forKey: DefaultsKey.port) as? Int {
             portString = "\(storedPort)"
-        } else {
-            portString = "9900"
-        }
+    } else {
+        portString = "9900"
+    }
 
         hostAddress = NetworkAddressResolver.primaryHostIdentifier()
-    }
 
-    func bootstrap() {
-        scheduleConfigurationUpdate(immediate: true)
-    }
+        let storedWidth = defaults.double(forKey: DefaultsKey.windowWidth)
+        let storedHeight = defaults.double(forKey: DefaultsKey.windowHeight)
+
+        let resolvedWidth = storedWidth >= 200 ? storedWidth : 720
+        let resolvedHeight = storedHeight >= 200 ? storedHeight : 720
+
+        windowWidthString = String(Int(resolvedWidth))
+        windowHeightString = String(Int(resolvedHeight))
+        playbackController.updateWindowSize(CGSize(width: resolvedWidth, height: resolvedHeight))
+
+        scheduleWindowSizeUpdate(immediate: true)
+}
+
+func bootstrap() {
+    scheduleConfigurationUpdate(immediate: true)
+}
 
     private func scheduleConfigurationUpdate(immediate: Bool = false) {
         configurationTask?.cancel()
@@ -189,11 +211,11 @@ final class AppState: ObservableObject {
 
     private func persist(regex: String, port: UInt16) {
         let defaults = UserDefaults.standard
-        defaults.set(regex, forKey: DefaultsKey.regex)
-        defaults.set(Int(port), forKey: DefaultsKey.port)
-    }
+    defaults.set(regex, forKey: DefaultsKey.regex)
+    defaults.set(Int(port), forKey: DefaultsKey.port)
+}
 
-    private func handleIncomingURL(_ url: URL) async {
+private func handleIncomingURL(_ url: URL) async {
         lastRequestDescription = url.absoluteString
         playbackController.playStream(from: url)
     }
@@ -202,18 +224,47 @@ final class AppState: ObservableObject {
         playbackController.stopPlayback()
     }
 
-    private func makeBonjourConfiguration(port: UInt16) -> WebRequestServer.Configuration.BonjourConfiguration {
-        let hostName = Host.current().localizedName ?? "Intercom Blaster"
-        hostAddress = NetworkAddressResolver.primaryHostIdentifier()
-        let txtRecord = NetService.data(fromTXTRecord: [
-            "path": Data("/play".utf8),
-            "proto": Data("http".utf8)
-        ])
-        return .init(
-            name: hostName,
-            type: "_intercomblaster._tcp",
-            domain: nil,
-            txtRecord: txtRecord
-        )
+private func makeBonjourConfiguration(port: UInt16) -> WebRequestServer.Configuration.BonjourConfiguration {
+    let hostName = Host.current().localizedName ?? "Intercom Blaster"
+    hostAddress = NetworkAddressResolver.primaryHostIdentifier()
+    let txtRecord = NetService.data(fromTXTRecord: [
+        "path": Data("/play".utf8),
+        "proto": Data("http".utf8)
+    ])
+    return .init(
+        name: hostName,
+        type: "_intercomblaster._tcp",
+        domain: nil,
+        txtRecord: txtRecord
+    )
+}
+
+private func scheduleWindowSizeUpdate(immediate: Bool = false) {
+    windowSizeTask?.cancel()
+    windowSizeTask = Task { [weak self] in
+        guard let self else { return }
+        if !immediate {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
+        await self.applyWindowSize()
     }
+}
+
+@MainActor
+private func applyWindowSize() {
+    let defaults = UserDefaults.standard
+    guard let width = Double(windowWidthString), let height = Double(windowHeightString) else {
+        windowSizeError = "Width and height must be numeric."
+        return
+    }
+    guard (200...1600).contains(width), (200...1600).contains(height) else {
+        windowSizeError = "Values must be between 200 and 1600."
+        return
+    }
+
+    windowSizeError = nil
+  defaults.set(width, forKey: DefaultsKey.windowWidth)
+  defaults.set(height, forKey: DefaultsKey.windowHeight)
+    playbackController.updateWindowSize(CGSize(width: width, height: height))
+}
 }

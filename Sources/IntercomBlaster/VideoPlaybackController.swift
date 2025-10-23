@@ -43,11 +43,22 @@ final class VideoPlaybackController: NSObject {
         player.drawable = nil
     }
 
+    private var windowSize = CGSize(width: 720, height: 720)
+
+    func updateWindowSize(_ size: CGSize) {
+        let clampedWidth = max(200, min(size.width, 1600))
+        let clampedHeight = max(200, min(size.height, 1600))
+        windowSize = CGSize(width: clampedWidth, height: clampedHeight)
+        if let window {
+            window.setContentSize(NSSize(width: clampedWidth, height: clampedHeight))
+        }
+    }
+
     private func prepareWindowIfNeeded() {
         guard window == nil else { return }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 720),
+            contentRect: NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -61,14 +72,16 @@ final class VideoPlaybackController: NSObject {
         videoView.autoresizingMask = [.width, .height]
         videoView.fillScreen = true
 
-        let containerView = NSView(frame: window.contentView?.bounds ?? NSRect(x: 0, y: 0, width: 720, height: 720))
+        let containerView = NSView(
+            frame: window.contentView?.bounds
+                ?? NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height))
         containerView.autoresizingMask = [.width, .height]
         containerView.addSubview(videoView)
         videoView.frame = containerView.bounds
 
         NSLayoutConstraint.activate([
             videoView.widthAnchor.constraint(equalTo: containerView.widthAnchor),
-            videoView.heightAnchor.constraint(equalTo: containerView.widthAnchor),
+            videoView.heightAnchor.constraint(equalTo: containerView.heightAnchor),
             videoView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
             videoView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
         ])

@@ -22,6 +22,10 @@ struct SettingsView: View {
 
                 Divider()
 
+                playbackWindowSection
+
+                Divider()
+
                 triggerSection
 
                 if let lastRequest = appState.lastRequestDescription {
@@ -110,6 +114,40 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+            }
+        }
+    }
+
+    private var playbackWindowSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Playback Window")
+                .font(.headline)
+
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                GridRow {
+                    Text("Width")
+                        .gridColumnAlignment(.trailing)
+                    TextField("Width", text: $appState.windowWidthString)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                }
+                GridRow {
+                    Text("Height")
+                        .gridColumnAlignment(.trailing)
+                    TextField("Height", text: $appState.windowHeightString)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                }
+            }
+
+            if let error = appState.windowSizeError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            } else {
+                Text("Values are in points; defaults to 720×720.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }
