@@ -171,13 +171,15 @@ struct SettingsView: View {
         guard let port = resolvedPort else {
             return "Port not configured"
         }
-        return "http://localhost:\(port)/play"
+        let host = appState.hostAddress
+        return "http://\(host):\(port)/play"
     }
 
     private var curlCommand: String? {
         guard let port = resolvedPort else { return nil }
+        let host = appState.hostAddress
         return """
-        curl -X POST http://localhost:\(port)/play \\
+        curl -X POST http://\(host):\(port)/play \\
              -H "Content-Type: text/plain" \\
              -d "rtsp://camera.local/live/ch00_0"
         """

@@ -1,6 +1,56 @@
 import Foundation
 import os
 import IntercomBlasterCore
+import Darwin
+
+private enum NetworkAddressResolver {
+    static func primaryHostIdentifier() -> String {
+        if let ip = primaryIPv4Address() {
+            return ip
+        }
+        if let bonjour = Host.current().localizedName {
+            return sanitizeHostName(bonjour)
+        }
+        return sanitizeHostName(ProcessInfo.processInfo.hostName)
+    }
+
+    private static func primaryIPv4Address() -> String? {
+        var addressList: [String] = []
+        var ifaddrPointer: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddrPointer) == 0, let first = ifaddrPointer else { return nil }
+        defer { freeifaddrs(ifaddrPointer) }
+
+        for ptr in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            let interface = ptr.pointee
+            let flags = Int32(interface.ifa_flags)
+            let addrFamily = interface.ifa_addr.pointee.sa_family
+            guard addrFamily == UInt8(AF_INET) else { continue }
+            let isUp = (flags & IFF_UP) == IFF_UP
+            let isRunning = (flags & IFF_RUNNING) == IFF_RUNNING
+            let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
+            guard isUp, isRunning, !isLoopback else { continue }
+
+            var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            let result = getnameinfo(interface.ifa_addr, socklen_t(interface.ifa_addr.pointee.sa_len), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST)
+            if result == 0 {
+                let address = hostname.withUnsafeBufferPointer { buffer -> String? in
+                    guard let base = buffer.baseAddress else { return nil }
+                    return String(validatingCString: base)
+                }
+                if let address, !address.isEmpty {
+                    addressList.append(address)
+                }
+            }
+        }
+        return addressList.first
+    }
+
+    private static func sanitizeHostName(_ name: String) -> String {
+        name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: " ", with: "-")
+    }
+}
 
 @MainActor
 final class AppState: ObservableObject {
@@ -22,6 +72,7 @@ final class AppState: ObservableObject {
     @Published private(set) var portError: String?
     @Published private(set) var serverStatus: ServerStatus = .stopped
     @Published private(set) var lastRequestDescription: String?
+    @Published private(set) var hostAddress: String
 
     private let playbackController = VideoPlaybackController()
     private lazy var server = WebRequestServer { [weak self] url in
@@ -62,6 +113,8 @@ final class AppState: ObservableObject {
         } else {
             portString = "9900"
         }
+
+        hostAddress = NetworkAddressResolver.primaryHostIdentifier()
     }
 
     func bootstrap() {
@@ -151,6 +204,7 @@ final class AppState: ObservableObject {
 
     private func makeBonjourConfiguration(port: UInt16) -> WebRequestServer.Configuration.BonjourConfiguration {
         let hostName = Host.current().localizedName ?? "Intercom Blaster"
+        hostAddress = NetworkAddressResolver.primaryHostIdentifier()
         let txtRecord = NetService.data(fromTXTRecord: [
             "path": Data("/play".utf8),
             "proto": Data("http".utf8)
