@@ -72,14 +72,18 @@ final class AppState: ObservableObject {
     @Published private(set) var portError: String?
 @Published private(set) var serverStatus: ServerStatus = .stopped
 @Published private(set) var lastRequestDescription: String?
-@Published private(set) var hostAddress: String
-@Published var windowWidthString: String {
+  @Published private(set) var hostAddress: String
+  @Published var windowWidthString: String {
     didSet { scheduleWindowSizeUpdate() }
-}
-@Published var windowHeightString: String {
+  }
+  @Published var windowHeightString: String {
     didSet { scheduleWindowSizeUpdate() }
-}
-@Published private(set) var windowSizeError: String?
+  }
+  @Published private(set) var windowSizeError: String?
+  @Published var defaultStreamString: String {
+    didSet { applyDefaultStreamURL() }
+  }
+  @Published private(set) var defaultStreamError: String?
 
 private let playbackController = VideoPlaybackController()
 private lazy var server = WebRequestServer { [weak self] url in
@@ -95,7 +99,8 @@ private enum DefaultsKey {
     static let port = "IntercomBlasterWebServerPort"
     static let windowWidth = "IntercomBlasterWindowWidth"
     static let windowHeight = "IntercomBlasterWindowHeight"
-}
+    static let defaultStream = "IntercomBlasterDefaultStreamURL"
+  }
     private static let defaultRegexPattern = #"(https?|rtsp)://.+"#
     private static let legacyDefaultRegexPattern = #"https?://.+"#
 
@@ -134,7 +139,11 @@ private enum DefaultsKey {
 
         windowWidthString = String(Int(resolvedWidth))
         windowHeightString = String(Int(resolvedHeight))
-        playbackController.updateWindowSize(CGSize(width: resolvedWidth, height: resolvedHeight))
+    playbackController.updateWindowSize(CGSize(width: resolvedWidth, height: resolvedHeight))
+
+    defaultStreamString =
+      defaults.string(forKey: DefaultsKey.defaultStream) ?? ""
+    applyDefaultStreamURL(persist: false)
 
         scheduleWindowSizeUpdate(immediate: true)
 }
@@ -246,7 +255,7 @@ private func scheduleWindowSizeUpdate(immediate: Bool = false) {
         if !immediate {
             try? await Task.sleep(nanoseconds: 200_000_000)
         }
-        await self.applyWindowSize()
+        await MainActor.run { self.applyWindowSize() }
     }
 }
 
@@ -266,5 +275,29 @@ private func applyWindowSize() {
   defaults.set(width, forKey: DefaultsKey.windowWidth)
   defaults.set(height, forKey: DefaultsKey.windowHeight)
     playbackController.updateWindowSize(CGSize(width: width, height: height))
-}
+  }
+
+  private func applyDefaultStreamURL(persist: Bool = true) {
+    let trimmed = defaultStreamString.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+      defaultStreamError = nil
+      if persist {
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.defaultStream)
+      }
+      Task { await server.updateDefaultStreamURL(nil) }
+      return
+    }
+
+    guard let url = URL(string: trimmed) else {
+      defaultStreamError = "Enter a valid URL or leave blank."
+      Task { await server.updateDefaultStreamURL(nil) }
+      return
+    }
+
+    defaultStreamError = nil
+    if persist {
+      UserDefaults.standard.set(trimmed, forKey: DefaultsKey.defaultStream)
+    }
+    Task { await server.updateDefaultStreamURL(url) }
+  }
 }

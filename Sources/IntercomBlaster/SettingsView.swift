@@ -14,15 +14,19 @@ struct SettingsView: View {
 
                 Divider()
 
-                playbackWindowSection
-
-                Divider()
-
                 webServerSection
 
                 Divider()
 
                 videoMatchingSection
+
+                Divider()
+
+                playbackWindowSection
+
+                Divider()
+
+                defaultStreamSection
 
                 Divider()
 
@@ -146,6 +150,26 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
             } else {
                 Text("Values are in points; defaults to 720×720.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var defaultStreamSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Default Stream")
+                .font(.headline)
+
+            TextField("rtsp://camera.local/live", text: $appState.defaultStreamString)
+                .textFieldStyle(.roundedBorder)
+
+            if let error = appState.defaultStreamError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            } else {
+                Text("Used when GET /defaultStream is requested.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

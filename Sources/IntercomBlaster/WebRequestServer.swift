@@ -22,10 +22,15 @@ actor WebRequestServer {
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private var configuration: Configuration?
+    private var defaultStreamURL: URL?
     private let logger = Logger(subsystem: "com.intercomblaster.app", category: "WebRequestServer")
 
     init(urlHandler: @escaping @Sendable (URL) async -> Void) {
         self.urlHandler = urlHandler
+    }
+
+    func updateDefaultStreamURL(_ url: URL?) {
+        defaultStreamURL = url
     }
 
     func restart(with configuration: Configuration) async throws {
@@ -134,33 +139,52 @@ actor WebRequestServer {
 
         do {
             let (head, body) = try await readRequest(from: connection)
-            guard head.method.uppercased() == "POST" else {
-                await sendResponse(connection, status: .methodNotAllowed, body: "Only POST supported.")
-                return
-            }
-            guard head.path == "/play" else {
-                await sendResponse(connection, status: .notFound, body: "Unknown endpoint.")
-                return
-            }
+            let method = head.method.uppercased()
 
-            guard let bodyString = String(data: body, encoding: .utf8) else {
-                await sendResponse(connection, status: .badRequest, body: "Body must be UTF-8.")
-                return
-            }
-
-            switch configuration.validator.validate(body: bodyString) {
-            case .success(let url):
-                logger.info("Accepted URL: \(url.absoluteString, privacy: .public)")
-                await urlHandler(url)
-                await sendResponse(connection, status: .ok, body: "Playback starting.")
-            case .failure(let error):
-                logger.error("Rejected request: \(self.errorMessage(error), privacy: .public)")
-                await sendResponse(connection, status: .badRequest, body: self.rejectionMessage(for: error))
+            switch (method, head.path) {
+            case ("POST", "/play"):
+                try await handlePlayRequest(body: body, configuration: configuration, connection: connection)
+            case ("GET", "/defaultStream"):
+                await handleDefaultStream(connection: connection)
+            default:
+                if method == "POST" {
+                    await sendResponse(connection, status: .notFound, body: "Unknown endpoint.")
+                } else {
+                    await sendResponse(connection, status: .methodNotAllowed, body: "Unsupported method.")
+                }
             }
         } catch {
             logger.error("Request handling error: \(error.localizedDescription, privacy: .public)")
             await sendResponse(connection, status: .badRequest, body: "Request error: \(error.localizedDescription)")
         }
+    }
+
+    private func handlePlayRequest(body: Data, configuration: Configuration, connection: NWConnection) async throws {
+        guard let bodyString = String(data: body, encoding: .utf8) else {
+            await sendResponse(connection, status: .badRequest, body: "Body must be UTF-8.")
+            return
+        }
+
+        switch configuration.validator.validate(body: bodyString) {
+        case .success(let url):
+            logger.info("Accepted URL: \(url.absoluteString, privacy: .public)")
+            await urlHandler(url)
+            await sendResponse(connection, status: .ok, body: "Playback starting.")
+        case .failure(let error):
+            logger.error("Rejected request: \(self.errorMessage(error), privacy: .public)")
+            await sendResponse(connection, status: .badRequest, body: self.rejectionMessage(for: error))
+        }
+    }
+
+    private func handleDefaultStream(connection: NWConnection) async {
+        guard let url = defaultStreamURL else {
+            await sendResponse(connection, status: .internalServerError, body: "No default stream configured.")
+            return
+        }
+
+        logger.info("Serving default stream: \(url.absoluteString, privacy: .public)")
+        await urlHandler(url)
+        await sendResponse(connection, status: .ok, body: "Playback starting.")
     }
 
     private func errorMessage(_ error: VideoURLValidator.ValidationError) -> String {
@@ -204,11 +228,14 @@ actor WebRequestServer {
                     throw RequestReadError.invalidHeaderEncoding
                 }
                 let head = try HTTPRequestParser.parseHead(from: headerString)
-                guard let contentLengthRaw = head.value(forHeader: "Content-Length") else {
+                var expectedLength = 0
+                if let contentLengthRaw = head.value(forHeader: "Content-Length") {
+                    guard let length = Int(contentLengthRaw), length >= 0 else {
+                        throw RequestReadError.invalidContentLength
+                    }
+                    expectedLength = length
+                } else if head.method.uppercased() == "POST" {
                     throw RequestReadError.missingContentLength
-                }
-                guard let expectedLength = Int(contentLengthRaw), expectedLength >= 0 else {
-                    throw RequestReadError.invalidContentLength
                 }
 
                 var body = Data(buffer[range.upperBound...])
