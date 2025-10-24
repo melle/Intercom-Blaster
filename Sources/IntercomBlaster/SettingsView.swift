@@ -14,15 +14,15 @@ struct SettingsView: View {
 
                 Divider()
 
+                playbackWindowSection
+
+                Divider()
+
                 webServerSection
 
                 Divider()
 
                 videoMatchingSection
-
-                Divider()
-
-                playbackWindowSection
 
                 Divider()
 
@@ -154,7 +154,7 @@ struct SettingsView: View {
 
     private var triggerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Trigger URL")
+            Text("Custom Trigger URL")
                 .font(.headline)
 
             Text(triggerURLText)
@@ -162,7 +162,7 @@ struct SettingsView: View {
                 .textSelection(.enabled)
 
             if let curlCommand {
-                Text("Sample curl command")
+                Text("Sample curl command to start playback of a custom URL")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 GroupBox {
@@ -182,7 +182,7 @@ struct SettingsView: View {
                 Label("Stopped", systemImage: "stop.circle")
                     .foregroundStyle(.secondary)
             case .running(let port):
-                Label("Listening on \(port)", systemImage: "antenna.radiowaves.left.and.right")
+                Label("Listening on port \(port)", systemImage: "antenna.radiowaves.left.and.right")
                     .foregroundStyle(.green)
             case .error(let message):
                 Label(message, systemImage: "exclamationmark.triangle")
@@ -219,7 +219,7 @@ struct SettingsView: View {
         return """
         curl -X POST http://\(host):\(port)/play \\
              -H "Content-Type: text/plain" \\
-             -d "rtsp://camera.local/live/ch00_0"
+             -d "rtsp://username:password@camera.local/live/ch00_0"
         """
     }
 
