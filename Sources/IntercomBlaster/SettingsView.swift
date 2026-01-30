@@ -14,19 +14,19 @@ struct SettingsView: View {
 
                 Divider()
 
-                webServerSection
-
-                Divider()
-
-                videoMatchingSection
-
-                Divider()
-
                 playbackWindowSection
 
                 Divider()
 
+                webServerSection
+
+                Divider()
+
                 defaultStreamSection
+
+                Divider()
+
+                videoMatchingSection
 
                 Divider()
 
@@ -161,7 +161,7 @@ struct SettingsView: View {
             Text("Default Stream")
                 .font(.headline)
 
-            TextField("rtsp://camera.local/live", text: $appState.defaultStreamString)
+            TextField("rtsp://user:password@camera.local/live", text: $appState.defaultStreamString)
                 .textFieldStyle(.roundedBorder)
 
             if let error = appState.defaultStreamError {
@@ -172,6 +172,18 @@ struct SettingsView: View {
                 Text("Used when GET /defaultStream is requested.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+
+            if let defaultCurlCommand {
+                Text("Sample curl command to start playback of the default URL")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                GroupBox {
+                    Text(defaultCurlCommand)
+                        .font(.system(.footnote, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
@@ -185,12 +197,12 @@ struct SettingsView: View {
                 .font(.system(.body, design: .monospaced))
                 .textSelection(.enabled)
 
-            if let curlCommand {
+            if let customCurlCommand {
                 Text("Sample curl command to start playback of a custom URL")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 GroupBox {
-                    Text(curlCommand)
+                    Text(customCurlCommand)
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -237,7 +249,15 @@ struct SettingsView: View {
         return "http://\(host):\(port)/play"
     }
 
-    private var curlCommand: String? {
+    private var defaultCurlCommand: String? {
+        guard let port = resolvedPort else { return nil }
+        let host = appState.hostAddress
+        return """
+        curl http://\(host):\(port)/defaultStream
+        """
+    }
+
+    private var customCurlCommand: String? {
         guard let port = resolvedPort else { return nil }
         let host = appState.hostAddress
         return """
