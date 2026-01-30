@@ -1,12 +1,18 @@
 import AppKit
+import Network
 import VLCKit
 
 @MainActor
 final class VideoPlaybackController: NSObject {
+    private static let preflightPort: UInt16 = 554
+    private static let preflightAttempts = 3
+    private static let preflightDelayNanoseconds: UInt64 = 200_000_000
+    private static let preflightTimeout: TimeInterval = 0.5
     private var window: NSWindow?
     private var videoView: VLCVideoView?
     private var placeholderImageView: NSImageView?
     private var hasRenderedVideo = false
+    private var playbackRequestID = UUID()
     private lazy var windowDelegate = PlaybackWindowDelegate(onClose: { [weak self] in
         self?.stopPlayback()
     })
@@ -21,7 +27,7 @@ final class VideoPlaybackController: NSObject {
 
     func playStream(from url: URL) {
         prepareWindowIfNeeded()
-        guard let videoView else { return }
+        guard videoView != nil else { return }
 
         lastErrorDescription = nil
         hasRenderedVideo = false
@@ -30,8 +36,25 @@ final class VideoPlaybackController: NSObject {
             player.stop()
         }
 
+        let requestID = UUID()
+        playbackRequestID = requestID
+        Task { [weak self] in
+            guard let self else { return }
+            await self.preflightWakeWifiIfNeeded(for: url)
+            guard self.playbackRequestID == requestID else { return }
+            self.startPlayback(with: url)
+        }
+    }
+
+    private func startPlayback(with url: URL) {
+        guard let videoView else { return }
+
         let media = VLCMedia(url: url)
-        media.addOption(":network-caching=1000")
+        // Favor fast startup over buffering. Tune these if playback gets choppy.
+        media.addOption(":network-caching=200")
+        media.addOption(":live-caching=200")
+        media.addOption(":drop-late-frames")
+        media.addOption(":skip-frames")
         media.addOption(":clock-jitter=0")
         media.addOption(":clock-synchro=0")
 
@@ -128,6 +151,77 @@ final class VideoPlaybackController: NSObject {
         guard let window else { return }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Sends a dummy request to the camera to wake up wifi (otherwise VLC might run
+    /// into "no route to host" and the retry timing of VLC is too slow).
+    private func preflightWakeWifiIfNeeded(for url: URL) async {
+        guard let host = url.host, !host.isEmpty else { return }
+
+        for attempt in 1...Self.preflightAttempts {
+            let reachable = await probeTcpReachability(host: host, port: Self.preflightPort)
+            if reachable {
+                return
+            }
+            if attempt < Self.preflightAttempts {
+                try? await Task.sleep(nanoseconds: Self.preflightDelayNanoseconds)
+            }
+        }
+    }
+
+    private func probeTcpReachability(host: String, port: UInt16) async -> Bool {
+        final class ProbeState: @unchecked Sendable {
+            let connection: NWConnection
+            let continuation: CheckedContinuation<Bool, Never>
+            var completed = false
+
+            init(connection: NWConnection, continuation: CheckedContinuation<Bool, Never>) {
+                self.connection = connection
+                self.continuation = continuation
+            }
+
+            func finish(_ reachable: Bool) {
+                guard !completed else { return }
+                completed = true
+                connection.cancel()
+                continuation.resume(returning: reachable)
+            }
+        }
+
+        return await withCheckedContinuation { continuation in
+            let nwHost = NWEndpoint.Host(host)
+            guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+                continuation.resume(returning: true)
+                return
+            }
+
+            let connection = NWConnection(host: nwHost, port: nwPort, using: .tcp)
+            let queue = DispatchQueue(label: "intercom.preflight")
+            let state = ProbeState(connection: connection, continuation: continuation)
+
+            connection.stateUpdateHandler = { stateUpdate in
+                switch stateUpdate {
+                case .ready:
+                    state.finish(true)
+                case .failed(let error):
+                    if case let .posix(code) = error,
+                       code == .ENETUNREACH || code == .EHOSTUNREACH {
+                        state.finish(false)
+                    } else {
+                        state.finish(true)
+                    }
+                case .cancelled:
+                    state.finish(false)
+                default:
+                    break
+                }
+            }
+
+            connection.start(queue: queue)
+            queue.asyncAfter(deadline: .now() + Self.preflightTimeout) {
+                state.finish(false)
+            }
+        }
     }
 
     private func loadPlaceholderImage() -> NSImage? {
