@@ -138,7 +138,27 @@ final class VideoPlaybackController: NSObject {
     }
 
     private func setPlaceholderVisible(_ isVisible: Bool) {
-        placeholderImageView?.isHidden = !isVisible
+        guard let placeholderImageView else { return }
+
+        if isVisible {
+            placeholderImageView.isHidden = false
+            placeholderImageView.alphaValue = 1.0
+            return
+        }
+
+        if placeholderImageView.isHidden {
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 1.0
+            placeholderImageView.animator().alphaValue = 0.0
+        }, completionHandler: { [weak placeholderImageView] in
+            Task { @MainActor in
+                placeholderImageView?.isHidden = true
+                placeholderImageView?.alphaValue = 1.0
+            }
+        })
     }
 
     private func presentErrorAlert(message: String) {
