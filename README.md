@@ -3,6 +3,7 @@
 Intercom Blaster is a macOS status-bar companion that listens for HTTP triggers and immediately blasts live video right in your face.
 
 ![Intercom Blaster Logo](Sources/IntercomBlaster/Resources/intercom-256.png)
+> The image is AI-generated and depicts [The Hitcher](https://mightyboosh.fandom.com/wiki/The_Hitcher), a character from the BBC series [The Mighty Boosh](https://en.wikipedia.org/wiki/The_Mighty_Boosh).
 
 ## But why?
 
