@@ -82,6 +82,10 @@ final class VideoPlaybackController: NSObject {
         containerView.wantsLayer = true
         containerView.layer?.backgroundColor = NSColor.clear.cgColor
 
+        let checkerboardView = CheckerboardView()
+        checkerboardView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(checkerboardView)
+
         let videoView = VLCVideoView()
         videoView.translatesAutoresizingMaskIntoConstraints = false
         videoView.autoresizingMask = [.width, .height]
@@ -98,6 +102,10 @@ final class VideoPlaybackController: NSObject {
         containerView.addSubview(placeholderImageView)
 
         NSLayoutConstraint.activate([
+            checkerboardView.widthAnchor.constraint(equalTo: containerView.widthAnchor),
+            checkerboardView.heightAnchor.constraint(equalTo: containerView.heightAnchor),
+            checkerboardView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            checkerboardView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
             videoView.widthAnchor.constraint(equalTo: containerView.widthAnchor),
             videoView.heightAnchor.constraint(equalTo: containerView.heightAnchor),
             videoView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
@@ -197,5 +205,34 @@ private final class PlaybackWindowDelegate: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         onClose()
+    }
+}
+
+private final class CheckerboardView: NSView {
+    private let squareSize: CGFloat = 16
+    private let lightColor = NSColor(white: 1.0, alpha: 0.33)
+    private let darkColor = NSColor(white: 0.9, alpha: 0.33)
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let cols = Int(ceil(dirtyRect.width / squareSize))
+        let rows = Int(ceil(dirtyRect.height / squareSize))
+
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let isLight = (row + col).isMultiple(of: 2)
+                let color = isLight ? lightColor : darkColor
+                let rect = CGRect(
+                    x: dirtyRect.origin.x + CGFloat(col) * squareSize,
+                    y: dirtyRect.origin.y + CGFloat(row) * squareSize,
+                    width: squareSize,
+                    height: squareSize
+                )
+                context.setFillColor(color.cgColor)
+                context.fill(rect)
+            }
+        }
     }
 }
