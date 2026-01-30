@@ -5,6 +5,8 @@ import VLCKit
 final class VideoPlaybackController: NSObject {
     private var window: NSWindow?
     private var videoView: VLCVideoView?
+    private var placeholderImageView: NSImageView?
+    private var hasRenderedVideo = false
     private lazy var windowDelegate = PlaybackWindowDelegate(onClose: { [weak self] in
         self?.stopPlayback()
     })
@@ -22,6 +24,8 @@ final class VideoPlaybackController: NSObject {
         guard let videoView else { return }
 
         lastErrorDescription = nil
+        hasRenderedVideo = false
+        setPlaceholderVisible(true)
         if player.isPlaying {
             player.stop()
         }
@@ -41,6 +45,8 @@ final class VideoPlaybackController: NSObject {
         player.stop()
         player.media = nil
         player.drawable = nil
+        hasRenderedVideo = false
+        setPlaceholderVisible(true)
     }
 
     private var windowSize = CGSize(width: 720, height: 720)
@@ -65,25 +71,41 @@ final class VideoPlaybackController: NSObject {
         )
         window.title = "Intercom Blaster"
         window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
         window.delegate = windowDelegate
-
-        let videoView = VLCVideoView()
-        videoView.translatesAutoresizingMaskIntoConstraints = false
-        videoView.autoresizingMask = [.width, .height]
-        videoView.fillScreen = true
 
         let containerView = NSView(
             frame: window.contentView?.bounds
                 ?? NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height))
         containerView.autoresizingMask = [.width, .height]
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = NSColor.clear.cgColor
+
+        let videoView = VLCVideoView()
+        videoView.translatesAutoresizingMaskIntoConstraints = false
+        videoView.autoresizingMask = [.width, .height]
+        videoView.fillScreen = true
+        videoView.wantsLayer = true
+        videoView.layer?.backgroundColor = NSColor.clear.cgColor
         containerView.addSubview(videoView)
-        videoView.frame = containerView.bounds
+
+        let placeholderImageView = NSImageView()
+        placeholderImageView.translatesAutoresizingMaskIntoConstraints = false
+        placeholderImageView.imageScaling = .scaleProportionallyUpOrDown
+        placeholderImageView.imageAlignment = .alignCenter
+        placeholderImageView.image = loadPlaceholderImage()
+        containerView.addSubview(placeholderImageView)
 
         NSLayoutConstraint.activate([
             videoView.widthAnchor.constraint(equalTo: containerView.widthAnchor),
             videoView.heightAnchor.constraint(equalTo: containerView.heightAnchor),
             videoView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
-            videoView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
+            videoView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            placeholderImageView.widthAnchor.constraint(equalTo: containerView.widthAnchor),
+            placeholderImageView.heightAnchor.constraint(equalTo: containerView.heightAnchor),
+            placeholderImageView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            placeholderImageView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor)
         ])
 
         window.contentView = containerView
@@ -91,12 +113,24 @@ final class VideoPlaybackController: NSObject {
 
         self.window = window
         self.videoView = videoView
+        self.placeholderImageView = placeholderImageView
     }
 
     private func bringWindowToFront() {
         guard let window else { return }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func loadPlaceholderImage() -> NSImage? {
+        guard let url = Bundle.module.url(forResource: "Intercom", withExtension: "png") else {
+            return nil
+        }
+        return NSImage(contentsOf: url)
+    }
+
+    private func setPlaceholderVisible(_ isVisible: Bool) {
+        placeholderImageView?.isHidden = !isVisible
     }
 
     private func presentErrorAlert(message: String) {
@@ -121,6 +155,17 @@ extension VideoPlaybackController: VLCMediaPlayerDelegate {
     nonisolated func mediaPlayerStateChanged(_ aNotification: Notification) {
         guard let player = aNotification.object as? VLCMediaPlayer else { return }
         switch player.state {
+        case .opening, .buffering:
+            Task { @MainActor in
+                if !self.hasRenderedVideo {
+                    self.setPlaceholderVisible(true)
+                }
+            }
+        case .playing, .paused:
+            Task { @MainActor in
+                self.hasRenderedVideo = true
+                self.setPlaceholderVisible(false)
+            }
         case .error:
             Task { @MainActor in
                 self.presentErrorAlert(message: "The stream reported an error.")
@@ -131,6 +176,14 @@ extension VideoPlaybackController: VLCMediaPlayerDelegate {
             }
         default:
             break
+        }
+    }
+
+    nonisolated func mediaPlayerTimeChanged(_ aNotification: Notification) {
+        Task { @MainActor in
+            guard !self.hasRenderedVideo else { return }
+            self.hasRenderedVideo = true
+            self.setPlaceholderVisible(false)
         }
     }
 }
