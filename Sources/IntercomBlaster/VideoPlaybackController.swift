@@ -96,6 +96,7 @@ final class VideoPlaybackController: NSObject {
         window.isReleasedWhenClosed = false
         window.isOpaque = false
         window.backgroundColor = .clear
+        window.collectionBehavior = [.moveToActiveSpace]
         window.delegate = windowDelegate
 
         let containerView = NSView(
